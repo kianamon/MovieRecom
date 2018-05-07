@@ -1,4 +1,6 @@
+#Set the working directory:
 setwd("/Users/Kianamon/R/project")
+#####################################################################################
 #libraries in use:
 library(knitr)
 library(httr)
@@ -9,6 +11,13 @@ library(XML)
 library(ggplot2)
 library(stringr)
 library(lubridate)
+library(grid)
+#####################################################################################
+#check for missing packages and install them:
+list.of.packages <- c("knitr", "httr", "readr", "dplyr", "tidyr", "XML",
+                      "ggplot2", "stringr", "lubridate", "grid")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
 #####################################################################################
 #downloading the two main data sets:
 #All the movies from IMDB website:
