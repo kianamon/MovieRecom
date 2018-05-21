@@ -31,15 +31,16 @@ mod$results
 set.seed(1234)
 k = 5
 folds <- createFolds(df_kianatrain$Likability, k, list = FALSE)
-mygrid <- expand.grid(minsplit = c(1, 2, 5, 10, 20), maxdepth = c(1, 2, 3, 4, 
-    5), cp = c(0, 0.01, 0.1, 0.3, 0.5, 1))
+mygrid <- expand.grid(minsplit = c(1, 2, 5, 10, 20), maxdepth = c(1, 2, 3, 4, 5), 
+cp = c(0, 0.01, 0.1, 0.3, 0.5, 1))
 mod_accuracy <- rep(0, nrow(mygrid))
 for (i in 1:nrow(mygrid)) {
     acc <- rep(0, k)
     for (j in 1:k) {
         kiana_train <- df_kianatrain[folds != j, ]
         kiana_test <- df_kianatrain[folds == j, ]
-        mod <- rpart(Likability ~ .-URL-Title, df_kianatrain, control = list(minsplit = mygrid$minsplit[i], 
+        mod <- rpart(Likability ~ .-URL-Title, df_kianatrain, 
+        control = list(minsplit = mygrid$minsplit[i], 
             maxdepth = mygrid$maxdepth[i], cp = mygrid$cp[i]))
         pred <- predict(mod, kiana_test, type = "class")
         cm <- confusionMatrix(pred, kiana_test$Likability)
