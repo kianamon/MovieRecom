@@ -1,20 +1,20 @@
 #glmnet:
 library(glmnet)
-x <- as.matrix(select(iris, -Species))
-y <- iris$Species
+x <- as.matrix(select(df_kianatrain, -URL-Title))
+y <- df_kianatrain$Likability
 mod_glmnet <- glmnet(x, y, family = "multinomial", lambda = 0)
 pred_glmnet <- predict(mod_glmnet, x, type = "response")
 head(pred_glmnet[, , 1])
 pred <- predict(mod_glmnet, x, type = "class")
 table(pred)
-confusionMatrix(pred, iris$Species)
+confusionMatrix(pred, df_kianatrain$Likability)
 
 #caret
 set.seed(1234)
 myControl <- trainControl(method = "cv",
 number = 5)
 grid <- expand.grid(alpha = 1, lambda = 0)
-mod <- train(Species ~ ., iris, method = "glmnet",
+mod <- train(Likability ~ .-URL-Title, df_kianatrain, method = "glmnet",
 family = "multinomial", trControl = myControl,
 tuneGrid = grid, metric = "Accuracy")
 mod$results$Accuracy
@@ -23,26 +23,26 @@ mod$results$Accuracy
 #tree based
 myControl <- trainControl(method = "cv", number = 5, classProbs = TRUE)
 grid <- expand.grid(cp = c(0, 0.1, 0.3, 0.6))
-mod <- train(Species ~ ., iris_train, method = "rpart", trControl = myControl, 
+mod <- train(Likability ~ .-URL-Title, df_kianatrain, method = "rpart", trControl = myControl, 
     tuneGrid = grid, metric = "Accuracy")
 mod$results
 
 #grid search
 set.seed(1234)
 k = 5
-folds <- createFolds(iris$Species, k, list = FALSE)
+folds <- createFolds(df_kianatrain$Likability, k, list = FALSE)
 mygrid <- expand.grid(minsplit = c(1, 2, 5, 10, 20), maxdepth = c(1, 2, 3, 4, 
     5), cp = c(0, 0.01, 0.1, 0.3, 0.5, 1))
 mod_accuracy <- rep(0, nrow(mygrid))
 for (i in 1:nrow(mygrid)) {
     acc <- rep(0, k)
     for (j in 1:k) {
-        iris_train <- iris[folds != j, ]
-        iris_test <- iris[folds == j, ]
-        mod <- rpart(Species ~ ., iris_train, control = list(minsplit = mygrid$minsplit[i], 
+        kiana_train <- df_kianatrain[folds != j, ]
+        kiana_test <- df_kianatrain[folds == j, ]
+        mod <- rpart(Likability ~ .-URL-Title, df_kianatrain, control = list(minsplit = mygrid$minsplit[i], 
             maxdepth = mygrid$maxdepth[i], cp = mygrid$cp[i]))
-        pred <- predict(mod, iris_test, type = "class")
-        cm <- confusionMatrix(pred, iris_test$Species)
+        pred <- predict(mod, kiana_test, type = "class")
+        cm <- confusionMatrix(pred, kiana_test$Likability)
         acc[j] <- cm$overall["Accuracy"]
     }
     mod_accuracy[i] <- mean(acc)
@@ -55,6 +55,6 @@ mod_accuracy[bst.mod]
 
 #ranger
 library(ranger)
-mod <- ranger(Species ~ ., iris)
+mod <- ranger(Likability ~ .-URL-Title, df_kianatrain)
 mod
 mod$confusion.matrix
