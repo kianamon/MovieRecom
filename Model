@@ -1,0 +1,60 @@
+#glmnet:
+library(glmnet)
+x <- as.matrix(select(iris, -Species))
+y <- iris$Species
+mod_glmnet <- glmnet(x, y, family = "multinomial", lambda = 0)
+pred_glmnet <- predict(mod_glmnet, x, type = "response")
+head(pred_glmnet[, , 1])
+pred <- predict(mod_glmnet, x, type = "class")
+table(pred)
+confusionMatrix(pred, iris$Species)
+
+#caret
+set.seed(1234)
+myControl <- trainControl(method = "cv",
+number = 5)
+grid <- expand.grid(alpha = 1, lambda = 0)
+mod <- train(Species ~ ., iris, method = "glmnet",
+family = "multinomial", trControl = myControl,
+tuneGrid = grid, metric = "Accuracy")
+mod$results$Accuracy
+
+
+#tree based
+myControl <- trainControl(method = "cv", number = 5, classProbs = TRUE)
+grid <- expand.grid(cp = c(0, 0.1, 0.3, 0.6))
+mod <- train(Species ~ ., iris_train, method = "rpart", trControl = myControl, 
+    tuneGrid = grid, metric = "Accuracy")
+mod$results
+
+#grid search
+set.seed(1234)
+k = 5
+folds <- createFolds(iris$Species, k, list = FALSE)
+mygrid <- expand.grid(minsplit = c(1, 2, 5, 10, 20), maxdepth = c(1, 2, 3, 4, 
+    5), cp = c(0, 0.01, 0.1, 0.3, 0.5, 1))
+mod_accuracy <- rep(0, nrow(mygrid))
+for (i in 1:nrow(mygrid)) {
+    acc <- rep(0, k)
+    for (j in 1:k) {
+        iris_train <- iris[folds != j, ]
+        iris_test <- iris[folds == j, ]
+        mod <- rpart(Species ~ ., iris_train, control = list(minsplit = mygrid$minsplit[i], 
+            maxdepth = mygrid$maxdepth[i], cp = mygrid$cp[i]))
+        pred <- predict(mod, iris_test, type = "class")
+        cm <- confusionMatrix(pred, iris_test$Species)
+        acc[j] <- cm$overall["Accuracy"]
+    }
+    mod_accuracy[i] <- mean(acc)
+    print(paste0("Iteration ", i, " out of ", nrow(mygrid), " completed."))
+    flush.console()
+}
+bst.mod <- which.max(mod_accuracy)
+mygrid[bst.mod, ]
+mod_accuracy[bst.mod]
+
+#ranger
+library(ranger)
+mod <- ranger(Species ~ ., iris)
+mod
+mod$confusion.matrix
