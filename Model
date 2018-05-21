@@ -5,27 +5,27 @@ y <- df_kianatrain$Likability
 mod_glmnet <- glmnet(x, y, family = "multinomial", lambda = 0)
 pred_glmnet <- predict(mod_glmnet, x, type = "response")
 head(pred_glmnet[, , 1])
-pred <- predict(mod_glmnet, x, type = "class")
-table(pred)
-confusionMatrix(pred, df_kianatrain$Likability)
+predglmnet <- predict(mod_glmnet, x, type = "class")
+table(predglmnet)
+confusionMatrix(predglmnet, df_kianatrain$Likability)
 
 #caret
 set.seed(1234)
-myControl <- trainControl(method = "cv",
+myControl1 <- trainControl(method = "cv",
 number = 5)
 grid <- expand.grid(alpha = 1, lambda = 0)
-mod <- train(Likability ~ .-URL-Title, df_kianatrain, method = "glmnet",
-family = "multinomial", trControl = myControl,
+modcaret <- train(Likability ~ .-URL-Title, df_kianatrain, method = "glmnet",
+family = "multinomial", trControl = myControl1,
 tuneGrid = grid, metric = "Accuracy")
-mod$results$Accuracy
+modcaret$results$Accuracy
 
 
 #tree based
-myControl <- trainControl(method = "cv", number = 5, classProbs = TRUE)
+myControl2 <- trainControl(method = "cv", number = 5, classProbs = TRUE)
 grid <- expand.grid(cp = c(0, 0.1, 0.3, 0.6))
-mod <- train(Likability ~ .-URL-Title, df_kianatrain, method = "rpart", trControl = myControl, 
+modrpart <- train(Likability ~ .-URL-Title, df_kianatrain, method = "rpart", trControl = myControl2, 
     tuneGrid = grid, metric = "Accuracy")
-mod$results
+modrpart$results
 
 #grid search
 set.seed(1234)
@@ -56,6 +56,6 @@ mod_accuracy[bst.mod]
 
 #ranger
 library(ranger)
-mod <- ranger(Likability ~ .-URL-Title, df_kianatrain)
-mod
-mod$confusion.matrix
+modranger <- ranger(Likability ~ .-URL-Title, df_kianatrain)
+modranger
+modranger$confusion.matrix
