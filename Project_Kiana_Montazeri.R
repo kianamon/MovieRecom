@@ -35,6 +35,9 @@ df_movies <- read_csv("movies.csv")
 #All the movies that I have watched:
 GET("https://raw.githubusercontent.com/kianamon/MovieRecom/master/kiana_watchlist.csv", 
     write_disk("kianamovies.csv", overwrite = TRUE))
+#kimia's movies:
+#df_kianamovies <- read_csv("WATCHLIST.csv")
+#kiana's movies:
 df_kianamovies <- read_csv("kianamovies.csv")
 #####################################################################################
 #renaming the columns for convenience:
