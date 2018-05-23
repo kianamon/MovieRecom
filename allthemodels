@@ -1,0 +1,523 @@
+library(ggplot2)
+library(magrittr)
+library(rmarkdown)
+library(dplyr)
+library(tidyr)
+library(RColorBrewer)
+library(reshape2)
+library(ggthemes)
+library(MASS)
+library(viridis)
+library(GSIF)
+library(ggtern)
+library(geomnet)
+library(ggmap)
+library(ggfortify)
+library(vars)
+library(maps)
+library(rgdal)
+library(animation)
+library(class)
+library(combinat)
+library(rpart)  
+library(rpart.plot)
+library(caret)
+library(ModelMetrics)   
+library(Metrics)  
+library(ipred)  
+library(stringr)
+library(randomForest)
+library(gbm)  
+library(ROCR)
+f=file(
+"https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/german/german.data")
+creditData <- read.table(f,col.names =paste0("X","1":"21") ,sep=" ")
+creditsub=creditData[1:522,c(2,8,11,13,21)]
+names(creditsub)=c("months_loan_duration","percent_of_income",
+                   "years_at_residence","age","default")  
+# structure de donnée
+str(creditsub)
+
+# crée le model
+credit_model <- rpart(formula = default ~ .,
+            data = creditsub, method = "class")
+credit_model
+# plot resultat
+rpart.plot(x =credit_model , yesno = 2, type = 0, extra = 0)  
+# pour Train/test 
+
+# recuprer le nombre  d'observation 
+n=nrow(creditsub)  
+
+# nombre de ligne pour le train
+n_train=round(0.80*n) #fonction round fait l'arrondi
+
+# nombre de ligne pour test 
+n_test=round(0.2*n)
+
+# creation de vecteur de taille n_train aléatoire de 1:n  
+set.seed(123) # pour que le même phénoméne aléatoire soit reproductible
+train_indices= sample(1:n, n_train)
+  
+# data train  
+credit_train=creditsub[train_indices,]
+
+# data test 
+credit_test=creditsub[-train_indices,] # en excluant les indices du train
+
+# Pour Apprentissage 
+credit_model <- rpart(formula = default ~., # le point pour prendre tout les regresseurs 
+                       data = credit_train, 
+                        method = "class") # classification de base pour response binaire
+  
+# Pour visualiser le model
+p=print(credit_model) 
+# Faire prediction
+p=predict(credit_model,
+          credit_test) # fait comme çà , nous avons juste proba mais pas les classification  
+
+
+head(p)  #1=oui 2=no
+  
+# Pour faire la classifiction directement 
+class_prediction=predict(object = credit_model,
+                         newdata=credit_test,
+                         type="class")
+head(class_prediction,30)  
+
+# Calcule  confusion matrix pour test set
+conf=confusionMatrix(class_prediction,       
+                     credit_test$default) 
+# Train avec  gini model  
+credit_model1 <- rpart(formula = default ~ ., 
+                       data = credit_train, 
+                       method = "class",
+                       parms = list(split = "gini"))
+
+# Train avec information-based model
+credit_model2 <- rpart(formula = default ~ ., 
+                       data = credit_train, 
+                       method = "class",
+                       parms = list(split = "information"))
+
+# Prediction pour gini
+pred1 <- predict(object = credit_model1, 
+             newdata = credit_test,
+             type = "class")    
+
+# Prediction pour Information 
+pred2 <- predict(object = credit_model2, 
+             newdata = credit_test,
+             type = "class")  
+
+# Compare classification erreur (ce)
+
+error_gini =ce(actual = credit_test$default, # Package Modelmetrics
+   predicted = pred1)
+error_info=ce(actual = credit_test$default, 
+   predicted = pred2) 
+2
+Note= read.csv("~/Desktop/Note.txt")
+
+
+# Randomly assign rows to ids (1/2/3 represents train/valid/test)
+# Pour train/validation/test split  70% / 15% / 15% (aléatoirement)
+set.seed(1)
+assignment <- sample(1:3, size = nrow(Note), prob =c(0.7,0.15,0.15), replace = TRUE)
+
+# Crée  train, validation and tests À partir de Note 
+Note_train = Note[assignment == 1, ]   # subset training 
+Note_valid = Note[assignment == 2, ]  # subset  validation 
+Note_test = Note[assignment == 3, ]   # subset test   
+
+# Train  model
+Note_model <- rpart(formula = final_grade ~ ., 
+                     data = Note_train, 
+                     method = "anova") # Option pour regression trees
+
+
+
+# Plot du tree model
+rpart.plot(x =Note_model, 
+           yesno = 2, # Affiche les Yesno
+           type = 0,
+           extra = 0)
+#  predictions  test set
+pred <- predict(object = Note_model,  
+                newdata =Note_test)  
+
+# Compute le RMSE
+RMSE=rmse(actual = Note_test$final_grade, 
+     predicted = pred) #package Metrics 
+
+?rpart.control
+# minsplit ->  
+   #le nombre minimum d'individu homogéne pour créer un sous groupe  (default 12)
+# cp -> la complexité (default 0.1)  plus c'est petit   
+   #plus l'arbre est susceptible d'être complexe
+# maxdepth -> le nombre max de noeud entre le Root node et le leaf node   
+ #(default 30 pour permettre le construction de trés grands arbres )
+
+# Plot  "CP Table" (pour voir le plus optimal pour le modéle)
+plotcp(Note_model)
+
+# Affiche le tableau "CP Table"
+print(Note_model$cptable)
+
+# Recupére la valeur optimal aprés Cross-validation
+opt_index <- which.min(Note_model$cptable[, "xerror"])
+cp_opt <- Note_model$cptable[opt_index, "CP"]
+
+# Prune the model (to optimized cp value)
+Note_model_opt <- prune(tree = Note_model, 
+                         cp = cp_opt)
+                          
+# Plot the optimized model
+rpart.plot(x = Note_model_opt, yesno = 2, type = 0, extra = 0)
+# Etablir une liste possible de ces deux paramétres
+minsplit <- seq(1, 4, 1)
+maxdepth <- seq(1, 6, 1)
+
+# Créer un dataframe contenant toute les combinaisons possibles
+hyper_grid <- expand.grid(minsplit = minsplit, maxdepth = maxdepth)
+
+# Vérification
+head(hyper_grid)
+
+# Print nombre de grid combinaison possible
+nrow(hyper_grid)  
+
+# Nombre potentiels de modéle dans le grid
+num_models <- nrow(hyper_grid)
+
+# Crée un list vide pour stocker les modéles
+Note_models <- list()
+
+# Boucle Apprentissage Modéle pour chaque grid
+
+for (i in 1:num_models) {
+
+    # Get minsplit, maxdepth values at row i
+    minsplit <- hyper_grid$minsplit[i]
+    maxdepth <- hyper_grid$maxdepth[i]
+
+    # Train a model and store in the list
+    Note_models[[i]] <- rpart(formula = final_grade ~ ., 
+                               data = Note_train, 
+                               method = "anova",
+                               minsplit = minsplit,
+                               maxdepth = maxdepth)
+}  
+  
+
+
+# Crée un vecteur vide pour enregistrer les valeurs des RMSE
+rmse_values <- c()
+
+# Boucle pour recupérer les rmse des modéles à partir du grid
+
+for (i in 1:num_models) {
+
+    # Recupére le modéle i
+    model <- Note_models[[i]]
+    
+    # Generate predictions on grade_valid 
+    pred <- predict(object = model,
+                    newdata = Note_valid)
+    
+    # Compute validation RMSE et l'ajoute 
+    rmse_values[i] <- rmse(actual = Note_valid$final_grade, 
+                           predicted = pred)
+}
+
+# Identifie le modéle avec le plus petit RMSE
+best_model <- Note_models[[which.min(rmse_values)]]
+
+# Affiche les Hyperparamétre du meilleur modéle
+best_model$control
+
+# Compute test set RMSE sur best_model
+
+dt_pred <- predict(object = best_model,
+                newdata = Note_test)
+
+rmse(actual = Note_test$final_grade, 
+     predicted = dt_pred)
+3
+# C'est un phénoméne aléatoire   
+# On paramétre set seed (123) pour la reproductibilité des mêmes données 
+set.seed(123)
+
+# Train bagged model
+credit_model <- bagging(formula = default ~ ., 
+                        data = credit_train,
+                        coob = TRUE) # Pour estimer le Accurracy
+
+# Print model
+print(credit_model)  
+credit_model= rpart(default~.,
+                    data= credit_train,
+                    method = "class")
+# prediction utilsant credit_test
+class_prediction <- predict(object = credit_model,    
+                            newdata =credit_test,  
+                            type = "class")  # return avec classification 
+
+# Print  predicted classes
+print(class_prediction)
+
+# Calcul le confusion matrix avec les mesure de performance
+caret::confusionMatrix( data=class_prediction,       
+                reference= credit_test$default)  
+# Fait prediction sur  credit_test  
+
+pred <- predict(object =credit_model, 
+                newdata = credit_test, 
+                type = "prob")
+# `pred`   
+
+class(pred)
+                
+# Look at the pred format
+head(pred)
+                
+# Compute le  AUC (`actual` est binaire et prend 0 ou 1)
+bag_auc=auc(actual = ifelse(credit_test$default == "1", 1, 0), 
+    predicted = pred[,"1"])                    
+
+# Specifier  les configuration du training
+ctrl <- trainControl(method = "cv",     # Cross-validation
+                     number = 5,      # 5 folds
+                     classProbs = TRUE,     # For AUC (pour considérer les classes)
+                     summaryFunction = twoClassSummary)  # For AUC (classification binaire)
+
+# caret est tres sensible au type facteur 
+credit_train$default= as.character(credit_train$default) %>%
+                      str_replace_all(pattern="1", replacement = "yes")%>%
+                      str_replace_all(pattern = "2", replacement = "no")
+
+credit_test$default= as.character(credit_test$default) %>%
+                      str_replace_all(pattern="1", replacement = "yes")%>%
+                      str_replace_all(pattern = "2", replacement = "no")
+
+# Cross validée le credit model utilisant la method "treebag" ; 
+# En relatant le  AUC (Area under the ROC curve)
+set.seed(1)  # Pour la reproductibilité
+credit_caret_model <-caret::train(default ~.,
+                            data = credit_train, 
+                            method = "treebag",
+                            metric = "ROC",
+                            trControl = ctrl)
+
+# Print Model
+print(credit_caret_model)
+
+
+# Inspecter le contenu
+names(credit_caret_model)
+
+# Print the CV AUC
+credit_caret_model$results[,"ROC"] 
+
+# prediction
+bg_pred <- predict(object = credit_caret_model,
+                newdata =credit_test,
+                type = "prob")
+
+# Compute le  AUC (`actual` est binaire et prend 0 ou 1)
+auc(actual = ifelse(credit_test$default == "yes", 1, 0),   
+  
+                    predicted = bg_pred[,"yes"])  
+4
+# caret est tres sensible au type facteur 
+credit_train$default= credit_train$default %>%
+                        as.factor()
+
+credit_test$default= credit_test$default %>%
+                       as.factor()
+# Train Random Forest
+set.seed(1)  # Pour le reproductibilité
+credit_model <- randomForest(formula = default ~., 
+                             data = credit_train)
+                             
+# Print  model output                             
+print(credit_model) 
+ # OOB l'erreur moyen dans les predictions Out-of-bag
+# Matrice des OOB error
+err <- credit_model$err.rate
+head(err)
+
+# montre le dernier OOB error
+oob_err <- err[nrow(err), "OOB"]
+print(oob_err)
+
+# Plot le model (error)
+plot(credit_model)
+legend(x = "right", 
+       legend = colnames(err),
+       fill = 1:ncol(err))   
+  
+# predict train 
+class_prediction <- predict(object = credit_model,   # model 
+                            newdata = credit_test,  # test dataset
+                            type = "class") # retourne classification 
+                            
+# Calcule le confusion matrix pour le test set
+cm <-caret:: confusionMatrix(data = class_prediction,       # Classes predites
+                      reference = credit_test$default)  # Classe observés
+print(cm)
+
+# Compare le  test set accuracy au OOB accuracy
+paste0("Test Accuracy: ", cm$overall[1])
+paste0("OOB Accuracy: ", 1 - oob_err)  
+  
+# Predict sur credit_test
+rf_pred <- predict(object = credit_model,
+            newdata =credit_test,
+            type = "prob")
+
+                
+# Compute le  AUC (`actual` est binaire et prend 0 ou 1)
+auc(actual = ifelse(credit_test$default == "yes", 1, 0), 
+    predicted = rf_pred[,"yes"])
+# Execute le tuning process
+set.seed(1)              
+res <- tuneRF(x = subset(credit_train, select = -default),
+              y =credit_train$default,
+              ntreeTry = 500) # Nombre max de arbres
+               
+# Look at results
+print(res)
+
+# trouve le mtry que minimise le OOB error
+mtry_opt <- res[,"mtry"][which.min(res[,"OOBError"])]
+print(mtry_opt)
+
+# Si on veut juste retrouner le  best RF modéle (plus que les resultats)
+#  set `doBest = TRUE` dans `tuneRF()` Pour retourner le best modéle
+# Au lieu  de set performance matrix.
+  
+mtry <- seq(4, ncol(credit_train) * 0.8, 2) # nombre max de variable à choisir aléatoirement
+nodesize <- seq(3, 8, 2) # Nombre de noeud max
+sampsize <- nrow(credit_train) * c(0.7, 0.8) # taille du train
+
+# Créer un dataframe avec toute les combinaisons possible
+hyper_grid <- expand.grid(mtry = mtry, nodesize = nodesize, sampsize = sampsize)
+
+# Vecteur vide pour stocker les OOB error
+oob_err <- c()
+
+# Boucle pour faire un train avec chaque combinaison de paramétre
+for (i in 1:nrow(hyper_grid)) {
+
+    # Train  Random Forest 
+    model <- randomForest(formula = default ~ ., 
+                          data = credit_train,
+                          mtry = hyper_grid$mtry[i],
+                          nodesize = hyper_grid$nodesize[i],
+                          sampsize = hyper_grid$sampsize[i])
+                          
+    # Recupére OOB error  du model                      
+    oob_err[i] <- model$err.rate[nrow(model$err.rate), "OOB"]
+}
+
+# Identifie  le hyperparamétre optimal en fonction des OOB error
+opt_i <- which.min(oob_err)
+print(hyper_grid[opt_i,])  
+5
+# Convertit "yes" to 1, "no" to 0
+credit_train$default <- ifelse(credit_train$default == "yes", 1, 0)
+credit_test$default<- ifelse(credit_test$default == "yes", 1, 0)
+# Train avec 10000-tree 
+set.seed(1)
+credit_model <- gbm(formula = default ~ ., 
+                    distribution = "bernoulli", # pour deux class
+                    data = credit_train,
+                    n.trees = 10000)
+                    
+# Print  model                    
+print(credit_model)
+
+# summary() prints l'importance des variable
+summary(credit_model)  
+  
+# Prediction 
+preds1 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees = 10000) # Nombre d'arbre à utiliser dans la prediction
+
+# Prediction (avec response)
+preds2 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees = 10000,
+                  type = "response")
+
+# Compare compare les intervalles de prediction
+range(preds1)
+range(preds2)
+
+# Generate les AUC 
+auc(actual = credit_test$default, predicted = preds1)  #default
+auc(actual = credit_test$default, predicted = preds2)  #rescaled  
+# le ntree optimal pour   OOB
+ntree_opt_oob <- gbm.perf(object = credit_model, 
+                          method = "OOB", 
+                          oobag.curve = TRUE)
+
+# Train avec Cross validation GBM model
+set.seed(1)
+credit_model_cv <- gbm(formula = default ~ ., 
+                       distribution = "bernoulli", 
+                       data = credit_train,
+                       n.trees = 10000,
+                       cv.folds = 2)
+
+# ntree optimal  pour  CV
+ntree_opt_cv <- gbm.perf(object = credit_model_cv, 
+                         method = "cv")
+ 
+# Compare compare les estimations                       
+print(paste0("Optimal n.trees (OOB Estimate): ", ntree_opt_oob))                         
+print(paste0("Optimal n.trees (CV Estimate): ", ntree_opt_cv))  
+
+# prediction sur credit_test apres de  ntree_opt_oob nombre de trees
+preds1 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees = ntree_opt_oob)
+                  
+# prediction sur credit_test apres de  ntree_opt_cv nombre de trees
+preds2 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees =ntree_opt_cv )   
+# prediction sur credit_test apres de  ntree_opt_oob nombre de trees
+preds1 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees = ntree_opt_oob, type="response")
+                  
+# prediction sur credit_test apres de  ntree_opt_cv nombre de trees
+preds2 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees =ntree_opt_cv )   
+
+# Generate the test set AUCs using the two sets of preditions & compare
+auc1 <- auc(actual = credit_test$default, predicted = preds1)  #OOB
+auc2 <- auc(actual = credit_test$default, predicted = preds2)  #CV 
+
+# Compare AUC 
+print(paste0("Test set AUC (OOB): ", auc1))                         
+print(paste0("Test set AUC (CV): ", auc2)) 
+
+# List of predictions
+preds_list <- list(preds1,preds2)
+
+# List of actual values (same for all)
+m <- length(preds_list)
+actuals_list <- rep(list(credit_test$default), m)
+
+# Plot the ROC curves
+pred <- prediction(preds_list, actuals_list)
+rocs <- performance(pred, "tpr", "fpr")
+plot(rocs, col = as.list(1:m), main = "Test Set ROC Curves")
+legend(x = "bottomright", 
+       legend = c("OOB", "CV"),
+       fill = 1:m)
