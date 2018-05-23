@@ -1,0 +1,25 @@
+ctrl <- trainControl(method = "cv",     # Cross-validation
+                     number = 5,      # 5 folds
+                     classProbs = TRUE,     # For AUC (pour considérer les classes)
+                     summaryFunction = twoClassSummary)  # For AUC (classification binaire)
+
+# caret est tres sensible au type facteur 
+credit_train$default= as.character(credit_train$default) %>%
+                      str_replace_all(pattern="1", replacement = "yes")%>%
+                      str_replace_all(pattern = "2", replacement = "no")
+
+credit_test$default= as.character(credit_test$default) %>%
+                      str_replace_all(pattern="1", replacement = "yes")%>%
+                      str_replace_all(pattern = "2", replacement = "no")
+
+# Cross validée le credit model utilisant la method "treebag" ; 
+# En relatant le  AUC (Area under the ROC curve)
+set.seed(1)  # Pour la reproductibilité
+credit_caret_model <-caret::train(default ~.,
+                            data = credit_train, 
+                            method = "treebag",
+                            metric = "ROC",
+                            trControl = ctrl)
+
+# Print Model
+print(credit_caret_model)
