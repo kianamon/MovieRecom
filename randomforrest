@@ -1,0 +1,37 @@
+set.seed(1)              
+res <- tuneRF(x = subset(credit_train, select = -default),
+              y =credit_train$default,
+              ntreeTry = 500) # Nombre max de arbres
+              print(res)
+              
+              
+              mtry_opt <- res[,"mtry"][which.min(res[,"OOBError"])]
+print(mtry_opt)
+
+mtry <- seq(4, ncol(credit_train) * 0.8, 2) # nombre max de variable à choisir aléatoirement
+nodesize <- seq(3, 8, 2) # Nombre de noeud max
+sampsize <- nrow(credit_train) * c(0.7, 0.8) # taille du train
+
+# Créer un dataframe avec toute les combinaisons possible
+hyper_grid <- expand.grid(mtry = mtry, nodesize = nodesize, sampsize = sampsize)
+
+# Vecteur vide pour stocker les OOB error
+oob_err <- c()
+
+# Boucle pour faire un train avec chaque combinaison de paramétre
+for (i in 1:nrow(hyper_grid)) {
+
+    # Train  Random Forest 
+    model <- randomForest(formula = default ~ ., 
+                          data = credit_train,
+                          mtry = hyper_grid$mtry[i],
+                          nodesize = hyper_grid$nodesize[i],
+                          sampsize = hyper_grid$sampsize[i])
+                          
+    # Recupére OOB error  du model                      
+    oob_err[i] <- model$err.rate[nrow(model$err.rate), "OOB"]
+}
+
+# Identifie  le hyperparamétre optimal en fonction des OOB error
+opt_i <- which.min(oob_err)
+print(hyper_grid[opt_i,])  
