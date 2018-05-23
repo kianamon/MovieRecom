@@ -1,0 +1,56 @@
+# Convertit "yes" to 1, "no" to 0
+credit_train$default <- ifelse(credit_train$default == "yes", 1, 0)
+credit_test$default<- ifelse(credit_test$default == "yes", 1, 0)
+# Train avec 10000-tree 
+set.seed(1)
+credit_model <- gbm(formula = default ~ ., 
+                    distribution = "bernoulli", # pour deux class
+                    data = credit_train,
+                    n.trees = 10000)
+                    
+# Print  model                    
+print(credit_model)
+
+summary(credit_model)
+preds1 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees = 10000) # Nombre d'arbre à utiliser dans la prediction
+
+# Prediction (avec response)
+preds2 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees = 10000,
+                  type = "response")
+
+# Compare compare les intervalles de prediction
+range(preds1)
+range(preds2)
+auc(actual = credit_test$default, predicted = preds1)  #default
+auc(actual = credit_test$default, predicted = preds2)  #rescaled  
+
+ntree_opt_oob <- gbm.perf(object = credit_model, 
+                          method = "OOB", 
+                          oobag.curve = TRUE)
+                          
+                          set.seed(1)
+credit_model_cv <- gbm(formula = default ~ ., 
+                       distribution = "bernoulli", 
+                       data = credit_train,
+                       n.trees = 10000,
+                       cv.folds = 2)
+
+# ntree optimal  pour  CV
+ntree_opt_cv <- gbm.perf(object = credit_model_cv, 
+                         method = "cv")
+                         
+print(paste0("Optimal n.trees (OOB Estimate): ", ntree_opt_oob))
+print(paste0("Optimal n.trees (CV Estimate): ", ntree_opt_cv))
+
+preds1 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees = ntree_opt_oob)
+                  
+# prediction sur credit_test apres de  ntree_opt_cv nombre de trees
+preds2 <- predict(object = credit_model, 
+                  newdata = credit_test,
+                  n.trees =ntree_opt_cv ) 
