@@ -1,0 +1,59 @@
+#xgboost
+# set a random seed & shuffle data frame
+set.seed(1234)
+df_train <- df_train[sample(1:nrow(df_train)), ]
+# print the first few rows of our dataframe
+head(df_train)
+# get a boolean vector of training labels
+move_Labels <- df_train %>%
+  select(Activity) %>%
+  is.na() %>% # is it NA?
+  magrittr::not() # switch TRUE and FALSE (using function from the magrittr package)
+
+# check out the first few lines
+head(move_Labels) # of our target variable
+
+df_train_numeric <- df_train %>%
+  select(-Id) %>% # the case id shouldn't contain useful information
+  select(-Name) %>% 
+  select(-Sex) %>%
+  select_if(is.numeric) # select remaining numeric columns
+
+# make sure that our dataframe is all numeric
+str(df_train_numeric)
+id <- model.matrix(~Id-1,df_train)
+name <- model.matrix(~Name-1,df_train)
+sex <- model.matrix(~Sex-1,df_train)
+
+df_train_numeric <- cbind(df_train_numeric, name, sex)
+df_train_matrix <- data.matrix(df_train_numeric)
+
+head(df_train_matrix)
+
+smp_size <- floor(0.7 * nrow(move_Labels))
+numberOfTrainingSamples <- sample(seq_len(nrow(move_Labels)), size = smp_size)
+
+# training data
+train_data <- df_train_matrix[1:numberOfTrainingSamples,]
+train_labels <- move_Labels[1:numberOfTrainingSamples]
+
+
+# testing data
+test_data <- df_train_matrix[-(1:numberOfTrainingSamples),]
+test_labels <- move_Labels[-(1:numberOfTrainingSamples)]
+
+# put our testing & training data into two seperates Dmatrixs objects
+dtrain <- xgb.DMatrix(data = train_data, label= train_labels)
+dtest <- xgb.DMatrix(data = test_data, label= test_labels)
+
+numberOfClasses <- length(unique(df_train$Activity))
+numberOfClasses
+# train a model using our training data
+model <- xgboost(data = dtrain, # the data   
+                 nround = 2, # max number of boosting iterations
+                 objective = "multi:softmax", 
+                 num_class = numberOfClasses)  
+# generate predictions for our held-out testing data
+pred <- predict(model, dtest)
+head(pred)
+label = getinfo(dtest, "label")
