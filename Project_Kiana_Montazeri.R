@@ -19,11 +19,12 @@ library(ranger)
 library(e1071)
 library(Metrics)
 library(rpart)
+library(mlr)
 #####################################################################################
 #check for missing packages and install them:
 list.of.packages <- c("knitr", "httr", "readr", "dplyr", "tidyr", "XML",
                       "ggplot2", "stringr", "lubridate", "grid", "caret", 
-                      "rpart", "Metrics", "e1071", "ranger", "glmnet")
+                      "rpart", "Metrics", "e1071", "ranger", "glmnet", "mlr")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 #####################################################################################
@@ -110,8 +111,14 @@ set.seed(1234)
 idx <- sample(1:nrow(df_kianatrain), round(0.8 * nrow(df_kianatrain)))
 df_train <- df_kianatrain[idx, ]
 df_test <- df_kianatrain[-idx, ]
+write.csv(df_train, file = "kinoo.csv", row.names=F)
 #####################################################################################
 #ranger
+grid <-  expand.grid(mtry = c(3,4), splitrule = "gini", min.node.size = 10)
+
+fitControl <- trainControl(method = "CV",
+                           number = 5,
+                           verboseIter = TRUE)
 modranger <- ranger(Likability ~ .-URL-Title-Directors-Genres4, df_train)
 modranger
 modranger$confusion.matrix
@@ -119,8 +126,7 @@ print(1-modranger$prediction.error)
 #0.31 is the accuracy which is he best so far!
 pred <- predict(modranger, df_test)
 #####################################################################################
-#XGB model
-#modxgb <- 
+
 #####################################################################################
 #Testing the model on the big set of all the movies:
 recom1 <- predict(modranger, movies1)
@@ -130,5 +136,6 @@ recom2 <- data.frame(Title=movies1$Title, URL=movies1$URL, Score=movies1$Score,
                      Genres4=movies1$Genres4, Directors=movies1$Directors,
                      Num_Votes=movies1$Num_Votes, Likability=recom1$predictions, 
                      stringsAsFactors = TRUE)
-recom <- arrange(recom2, desc(Likability))
-write.csv(recom, file = "SortedRecom.csv", row.names=F)
+recomr <- arrange(recom2, desc(Likability))
+write.csv(recomr, file = "SortedRecomranger.csv", row.names=F)
+
